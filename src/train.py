@@ -8,6 +8,10 @@ import matplotlib.pyplot as plt
 from sklearn.utils import resample
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.compose import make_column_transformer
 from sklearn.preprocessing import OneHotEncoder,  StandardScaler
 from sklearn.metrics import (
@@ -18,6 +22,9 @@ from sklearn.metrics import (
     confusion_matrix,
     ConfusionMatrixDisplay,
 )
+import mlflow
+import mlflow.sklearn
+import time
 
 ### Import MLflow
 
@@ -111,35 +118,34 @@ def preprocess(df):
     return col_transf, X_train, X_test, y_train, y_test
 
 
-def train(X_train, y_train):
-    """
-    Train a logistic regression model.
-
-    Args:
-        X_train (pd.DataFrame): DataFrame with features
-        y_train (pd.Series): Series with target
-
-    Returns:
-        LogisticRegression: trained logistic regression model
-    """
-    log_reg = LogisticRegression(max_iter=1000)
-    log_reg.fit(X_train, y_train)
-
-    ### Log the model with the input and output schema
-    # Infer signature (input and output schema)
-
-    # Log model
-
-    ### Log the data
-
-    return log_reg
+def train(X_train, y_train, model_type="logistic"):
+    if model_type == "logistic":
+        model = LogisticRegression(max_iter=1000)
+    elif model_type == "decision_tree":
+        model = DecisionTreeClassifier(random_state=42)
+    elif model_type == "svm":
+        model = SVC(probability=True)
+    elif model_type == "random_forest":
+        model = RandomForestClassifier(n_estimators=100, random_state=42)
+    elif model_type == "knn":
+        model = KNeighborsClassifier(n_neighbors=5)
+    else:
+        raise ValueError(f"Unsupported model type: {model_type}")
+    
+    model.fit(X_train, y_train)
+    return model
 
 
-def main():
+
+
+def main(model_type="logistic"):
+    start_time = time.time()
+
     ### Set the tracking URI for MLflow
+    mlflow.set_tracking_uri("http://127.0.0.1:5000")
 
     ### Set the experiment name
-
+    mlflow.set_experiment("bank-customer-churn")
 
     ### Start a new run and leave all the main function code as part of the experiment
 
@@ -148,18 +154,45 @@ def main():
 
     ### Log the max_iter parameter
 
-    model = train(X_train, y_train)
+    model = train(X_train, y_train, model_type)
+
+    end_time = time.time()
+    training_time = end_time - start_time
+    
+    
+    if model_type == "logistic":
+        mlflow.log_param("max_iter", 1000)
+    elif model_type == "decision_tree":
+        mlflow.log_param("max_depth", model.get_depth())
+    elif model_type == "svm":
+        mlflow.log_param("kernel", model.kernel)
+    elif model_type == "random_forest":
+        mlflow.log_param("n_estimators", model.n_estimators)
+        mlflow.log_param("max_depth", model.max_depth)
+    elif model_type == "knn":
+        mlflow.log_param("n_neighbors", model.n_neighbors)
+
+
+    mlflow.log_metric("training_time_sec", training_time)
 
     
     y_pred = model.predict(X_test)
 
     ### Log metrics after calculating them
+    mlflow.log_metric("accuracy", accuracy_score(y_test, y_pred))
+    mlflow.log_metric("precision", precision_score(y_test, y_pred))
+    mlflow.log_metric("recall", recall_score(y_test, y_pred))
+    mlflow.log_metric("f1_score", f1_score(y_test, y_pred))
+    mlflow.log_param("model_name", model_type)
+    mlflow.set_tag("model_name", model_type)
 
 
     ### Log tag
+    mlflow.set_tag("developer", f"Model {model_type}")
 
 
-    
+    mlflow.sklearn.log_model(model, "model", input_example=X_train.head())
+
     conf_mat = confusion_matrix(y_test, y_pred, labels=model.classes_)
     conf_mat_disp = ConfusionMatrixDisplay(
         confusion_matrix=conf_mat, display_labels=model.classes_
@@ -167,9 +200,12 @@ def main():
     conf_mat_disp.plot()
     
     # Log the image as an artifact in MLflow
-    
+    fig_path = f"outputs/conf_matrix {model_type}.png"
+    plt.savefig(fig_path)
+    mlflow.log_artifact(fig_path)
+
     plt.show()
 
 
 if __name__ == "__main__":
-    main()
+    main(model_type='knn')
