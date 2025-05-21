@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-model = load_model()
+model, preprocessor = load_model()
 
 @app.get("/")
 def home():
@@ -23,5 +23,5 @@ def health():
 async def make_prediction(request: Request):
     data = await request.json()
     logger.info(f"Predict called with: {data}")
-    result = predict(model, data)
+    result = predict(model, preprocessor, data)
     return {"prediction": result}

@@ -25,6 +25,7 @@ from sklearn.metrics import (
 import mlflow
 import mlflow.sklearn
 import time
+import joblib
 
 ### Import MLflow
 
@@ -152,6 +153,10 @@ def main(model_type="logistic"):
     df = pd.read_csv("data/Churn_Modelling.csv")
     col_transf, X_train, X_test, y_train, y_test = preprocess(df)
 
+
+    preproc_path = f"outputs/preprocessor_{model_type}.pkl"
+    joblib.dump(col_transf, preproc_path)
+    mlflow.log_artifact(preproc_path, artifact_path="preprocessor")
     ### Log the max_iter parameter
 
     model = train(X_train, y_train, model_type)
@@ -208,4 +213,4 @@ def main(model_type="logistic"):
 
 
 if __name__ == "__main__":
-    main(model_type='knn')
+    main(model_type='svm')
