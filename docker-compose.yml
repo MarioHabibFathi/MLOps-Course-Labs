@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: ml-api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - prometheus
+      - mlflow
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    networks:
+      - monitor-net
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - monitor-net
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - monitor-net
+
+  mlflow:
+    image: python:3.11-slim
+    container_name: mlflow
+    command: >
+      bash -c "pip install mlflow && mlflow server
+      --backend-store-uri /mlruns
+      --default-artifact-root /mlruns
+      --host 0.0.0.0
+      --port 5000"
+    volumes:
+      - /c/Users/mario/mlruns:/mlruns
+    ports:
+      - "5000:5000"
+    networks:
+      - monitor-net
+volumes:
+  grafana-storage:
+networks:
+  monitor-net:
