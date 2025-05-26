@@ -16,18 +16,19 @@ def test_health():
 
 def test_predict():
     sample_input = {
-        "CreditScore": 650,
-        "Age": 35,
-        "Tenure": 2,
-        "Balance": 80000.0,
-        "NumOfProducts": 1,
-        "HasCrCard": 1,
-        "IsActiveMember": 1,
-        "EstimatedSalary": 45000,
-        "Geography_France": 1,
-        "Geography_Germany": 0,
-        "Gender_Male": 1
+      "CreditScore": 650,
+      "Geography": "France",
+      "Gender": "Female",
+      "Age": 30,
+      "Tenure": 5,
+      "Balance": 100000.0,
+      "NumOfProducts": 2,
+      "HasCrCard": 1,
+      "IsActiveMember": 5,
+      "EstimatedSalary": 50000.0
     }
+
     response = client.post("/predict", json=sample_input)
     assert response.status_code == 200
     assert "prediction" in response.json()
+
